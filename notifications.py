@@ -19,11 +19,18 @@ class LiveStream:
     url: str
 
 
-def format_live_notification(stream: LiveStream, role_mention: str, twitch_url: str) -> str:
-    title = discord.utils.escape_mentions(discord.utils.escape_markdown(stream.title))
+def _escape(text: str) -> str:
+    return discord.utils.escape_mentions(discord.utils.escape_markdown(text))
+
+
+def format_live_notification(
+    stream: LiveStream, role_mention: str, twitch_url: str, streamer_name: str = "",
+) -> str:
+    title = _escape(stream.title)
+    who = f"{_escape(streamer_name)} is streaming" if streamer_name else "Now streaming"
     return (
         f"🔔 {role_mention} boop!\n"
-        f'Now streaming "**{title}**" '
+        f'{who} "**{title}**" '
         f"live on [YouTube]({stream.url}) and "
         f"[Twitch](<{twitch_url}>) ! (,,⟡o⟡,,)"
     )
@@ -89,7 +96,10 @@ class LiveNotifier:
                     continue
                 try:
                     await channel.send(
-                        format_live_notification(stream, role.mention, self.settings.twitch_stream_url),
+                        format_live_notification(
+                            stream, role.mention, self.settings.twitch_stream_url,
+                            self.settings.streamer_name,
+                        ),
                         allowed_mentions=discord.AllowedMentions(
                             roles=[role], users=False, everyone=False, replied_user=False,
                         ),

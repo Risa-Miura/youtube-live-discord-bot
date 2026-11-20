@@ -70,6 +70,7 @@ Edit `.env` locally. Keep your existing file when upgrading.
 | `YOUTUBE_API_KEY` | API key for YouTube Data API v3. |
 | `YOUTUBE_CHANNEL_ID` | Actual channel ID; handle conversion is not supported. |
 | `TWITCH_STREAM_URL` | Full Twitch channel URL included in each alert. |
+| `STREAMER_NAME` | Optional name shown in alerts ("<name> is streaming"). Without it alerts say "Now streaming". |
 | `DATA_DIR` | Optional state directory. Defaults to the project directory locally and `/data` in Docker. |
 
 All three monitoring values must be set to enable YouTube polling. Without

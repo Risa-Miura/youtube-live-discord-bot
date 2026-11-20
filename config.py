@@ -17,6 +17,7 @@ class Settings:
     youtube_channel_id: str = ""
     twitch_stream_url: str = ""
     data_dir: Path = PROJECT_DIR
+    streamer_name: str = ""
 
     @property
     def missing_monitor_settings(self) -> list[str]:
@@ -47,6 +48,7 @@ class Settings:
             youtube_channel_id=value("YOUTUBE_CHANNEL_ID"),
             twitch_stream_url=value("TWITCH_STREAM_URL").strip("<>"),
             data_dir=data_dir.resolve(),
+            streamer_name=value("STREAMER_NAME"),
         )
 
 

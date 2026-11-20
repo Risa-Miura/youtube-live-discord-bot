@@ -26,6 +26,7 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(settings.discord_token, "token")
         self.assertIn("YOUTUBE_API_KEY", settings.missing_monitor_settings)
         self.assertNotIn("token", repr(settings))
+        self.assertEqual(settings.streamer_name, "")
 
     def test_paths_and_optional_settings(self):
         settings = Settings.from_environment({
@@ -34,10 +35,12 @@ class ConfigTests(unittest.TestCase):
             "YOUTUBE_CHANNEL_ID": "UCexample",
             "TWITCH_STREAM_URL": " <https://www.twitch.tv/example> ",
             "DATA_DIR": "data",
+            "STREAMER_NAME": " Alex ",
         })
         self.assertEqual(settings.data_dir, PROJECT_DIR / "data")
         self.assertEqual(settings.twitch_stream_url, "https://www.twitch.tv/example")
         self.assertEqual(settings.missing_monitor_settings, [])
+        self.assertEqual(settings.streamer_name, "Alex")
 
 
 class StateTests(unittest.TestCase):
@@ -103,6 +106,9 @@ class NotificationTests(unittest.IsolatedAsyncioTestCase):
             '🔔 <@&2> boop!\nNow streaming "**Cozy Stream**" '
             'live on [YouTube](https://www.youtube.com/watch?v=video) and '
             '[Twitch](<https://www.twitch.tv/example>) ! (,,⟡o⟡,,)')
+        named = format_live_notification(self.stream, "<@&2>", "url", "Alex")
+        self.assertTrue(named.startswith('🔔 <@&2> boop!\nAlex is streaming "**Cozy Stream**" '))
+        self.assertNotIn("@everyone", format_live_notification(self.stream, "<@&2>", "url", "@everyone"))
         hostile = LiveStream("v", "@everyone *title*", "https://youtube.com/watch?v=v")
         self.assertNotIn("@everyone", format_live_notification(hostile, "<@&2>", "url"))
 
