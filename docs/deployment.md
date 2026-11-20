@@ -22,8 +22,8 @@ excluded from the build context.
 If `discord-bot` already exists, use the migration instructions below first.
 
 ```sh
-git clone https://github.com/Risa-Miura/discord-notification-bot.git
-cd discord-notification-bot
+git clone https://github.com/Risa-Miura/youtube-live-discord-bot.git
+cd youtube-live-discord-bot
 # Create .env only if it does not already exist; never overwrite existing secrets.
 (umask 077; test -e .env || cp .env.example .env)
 chmod 600 .env

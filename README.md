@@ -44,8 +44,8 @@ permissions the bot needs.
 With Docker Compose:
 
 ```sh
-git clone https://github.com/Risa-Miura/discord-notification-bot.git
-cd discord-notification-bot
+git clone https://github.com/Risa-Miura/youtube-live-discord-bot.git
+cd youtube-live-discord-bot
 cp .env.example .env    # then fill in your own values; never commit .env
 docker compose up -d --build
 docker compose logs -f
