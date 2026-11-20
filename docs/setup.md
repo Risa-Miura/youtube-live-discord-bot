@@ -1,7 +1,7 @@
 # Setup and configuration
 
 Full setup for running the bot from source. For the short version, see the
-[Quick start](../README.md#quick-start). For Docker Compose and VM deployment, see
+[Setup section in the README](../README.md#setup). For Docker Compose and VM deployment, see
 [deployment.md](deployment.md).
 
 ## Requirements and external APIs
