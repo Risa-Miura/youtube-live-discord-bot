@@ -19,7 +19,7 @@ class StateStore:
         for guild_id, settings in self._roles.items():
             if not guild_id.isdigit() or not isinstance(settings, dict):
                 raise StateError("Invalid role_config.json. Restore a valid backup.")
-            if any(type(settings.get(key)) is not int for key in ("role_id", "channel_id")):
+            if any(type(settings[key]) is not int for key in ("role_id", "channel_id") if key in settings):
                 raise StateError("Invalid role_config.json. Expected numeric role_id and channel_id.")
         for guild_id, ids in self._announced.items():
             if (not guild_id.isdigit() or not isinstance(ids, list)
@@ -67,8 +67,20 @@ class StateStore:
         return {key: dict(value) for key, value in self._roles.items()}
 
     def set_destination(self, guild_id: int, role_id: int, channel_id: int) -> None:
+        self._update_destination(guild_id, role_id=role_id, channel_id=channel_id)
+
+    def set_channel(self, guild_id: int, channel_id: int) -> None:
+        self._update_destination(guild_id, channel_id=channel_id)
+
+    def set_role(self, guild_id: int, role_id: int) -> None:
+        self._update_destination(guild_id, role_id=role_id)
+
+    def notification_channel_id(self, guild_id: int) -> int | None:
+        return self._roles.get(str(guild_id), {}).get("channel_id")
+
+    def _update_destination(self, guild_id: int, **settings: int) -> None:
         updated = self.destinations()
-        updated[str(guild_id)] = {"role_id": role_id, "channel_id": channel_id}
+        updated.setdefault(str(guild_id), {}).update(settings)
         self._write("role_config.json", updated)
         self._roles = updated
 

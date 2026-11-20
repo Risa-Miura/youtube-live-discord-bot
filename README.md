@@ -7,8 +7,10 @@ includes clickable YouTube and Twitch links.
 ## Features
 
 - `/ping` responds with `Pong!`.
-- `/set-role` chooses the livestream role and uses the current channel for alerts.
+- `/set-channel` selects the notification text channel for this server.
+- `/set-role` chooses the livestream role without changing the destination.
 - `/test-live` sends a simulated alert through the same service as real streams.
+- All commands require Administrator permission and can only run inside a server.
 - YouTube is checked every 60 seconds using the official YouTube Data API v3.
 - The latest 100 announced stream IDs are remembered per Discord server.
 - Configuration, commands, notifications, API polling, and storage have separate modules.
@@ -20,7 +22,7 @@ is not implemented and requires no credentials.
 
 ```text
 bot.py                 # Entry point, Discord connection, startup and shutdown
-commands.py            # /ping, /set-role, /test-live
+commands.py            # Administrator-only command tree and slash commands
 config.py              # Environment loading and settings
 notifications.py       # Shared alert formatting and delivery
 state.py               # Validated JSON storage and atomic file replacement
@@ -29,6 +31,7 @@ monitors/
     youtube.py         # YouTube requests and background polling
 tests/
     test_bot.py        # Offline regression tests
+    test_channels.py   # Administrator access and persistent notification destinations
 .env.example           # Configuration template (no credentials)
 requirements.txt
 Dockerfile
@@ -58,9 +61,20 @@ Obtain its token on the Bot page. Invite it to your server using the `bot` and
 **Embed Links** in the destination channel. No privileged gateway intents are needed.
 
 For a role ping to notify members, make the role mentionable or grant the bot
-**Mention @everyone, @here, and All Roles**. The two configuration/test commands
-default to members with **Manage Server**; server administrators can customize
-application command permissions in Discord.
+**Mention @everyone, @here, and All Roles**.
+
+Every slash command requires Discord's **Administrator** permission, including
+`/ping`, `/set-channel`, `/set-role`, and `/test-live`. This includes the server owner,
+whose guild permissions inherently include Administrator. **Manage Server** alone
+is not enough. A shared command-tree check verifies the caller's guild permissions
+before dispatch, including for future commands registered on the tree.
+Commands outside a server are rejected privately.
+
+Commands are registered as guild-only with Administrator default permissions to
+limit availability in Discord. Server-specific command overrides may still make
+commands visible; visibility is not guaranteed. The runtime permission check
+still denies non-administrators even if Discord lets them invoke a command. See discord.py's
+[command tree interaction check](https://discordpy.readthedocs.io/en/stable/interactions/api.html#discord.app_commands.CommandTree.interaction_check).
 
 Enable **YouTube Data API v3** in a Google Cloud project and create an API key.
 Restrict that key to the YouTube Data API. See the
@@ -121,8 +135,10 @@ python3 -m venv .venv
 .venv/bin/python bot.py
 ```
 
-Wait for the connected message in the terminal. In Discord, run `/set-role`
-in the desired alert channel, select the role, then run `/test-live`. The test
+Wait for the connected message in the terminal. As a server administrator, run
+`/set-channel` and select a text channel using Discord's channel selector. The bot
+must have **View Channel** and **Send Messages** there. Then run `/set-role`
+to select the livestream role, followed by `/test-live`. The test
 really mentions that role and can be repeated; it does not change the saved
 stream history. Global command updates can take time to appear.
 
@@ -144,7 +160,9 @@ On Linux use `.venv/bin/python` in place of the Windows executable.
 
 Tests cover configuration, the exact notification text, role mention restrictions,
 state compatibility and restart deduplication, failed delivery retries,
-concurrent delivery, the three slash commands, live-video filtering, API failure
+concurrent delivery, the four slash commands, administrator-only dispatch (including
+server owners, Manage Server without Administrator, and DMs), per-server channel persistence and permissions,
+live-video filtering, API failure
 recovery, sanitized errors, and HTTP-session cleanup. They use temporary state
 directories and never read your real `.env`.
 
@@ -154,6 +172,19 @@ Existing root-level JSON files retain their names and formats; upgrading does
 not require migration. State is loaded at startup and updated by the bot.
 Restart after manually editing a state file. To change `DATA_DIR`, stop the bot
 and copy both existing JSON files into that directory first.
+
+`/set-channel` saves `channel_id` per server in the existing `role_config.json`.
+This is the shared destination for all current notifications, including `/test-live`;
+future notification sources should use `notification_channel()` in `notifications.py`.
+The setting persists across bot/container restarts, VM reboots, and Compose rebuilds
+because Compose stores the file in its existing `/data` named volume. Existing saved
+channels remain valid; no new environment variable or migration is needed.
+
+`/set-role` now changes only the role. For a new server, both settings must be
+configured before livestream alerts can be sent. An unset, deleted, or inaccessible
+channel causes a warning and skips delivery without falling back to another channel.
+Fix the bot's permissions if necessary, then use `/set-channel` to select a usable
+destination. Unsent streams are not marked as announced.
 
 JSON saves use a temporary file and atomic replacement. Malformed or unreadable
 state causes a clear startup error instead of silently forgetting announcements;
@@ -210,7 +241,8 @@ resolved secrets.
 
 The named volume `discord-notification-bot_bot-data` stores role settings and
 announcement history at `/data`. Compose overrides `DATA_DIR` to this location.
-On a fresh installation, run `/set-role` in Discord. Keep only one bot instance
+On a fresh installation, a server administrator should run `/set-channel` and `/set-role`
+in Discord. Keep only one bot instance
 running to avoid duplicate alerts.
 
 ### Future updates and everyday commands
@@ -331,7 +363,7 @@ docker compose down
 ```
 
 A fresh local Compose volume does not automatically import root-level JSON files.
-Use `/set-role` to configure it, or copy the files before startup as in the
+Use `/set-channel` and `/set-role` to configure it, or copy the files before startup as in the
 migration procedure. `/test-live` will send a real role mention.
 
 See the [Compose service reference](https://docs.docker.com/reference/compose-file/services/)

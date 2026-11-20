@@ -87,9 +87,12 @@ class NotificationTests(unittest.IsolatedAsyncioTestCase):
         self.channel.send = AsyncMock()
         role = SimpleNamespace(id=2, mention="<@&2>")
         guild = MagicMock()
+        guild.id = 1
+        self.channel.guild = guild
         guild.get_role.return_value = role
-        guild.get_channel_or_thread.return_value = self.channel
+        guild.get_channel.return_value = self.channel
         self.client = MagicMock()
+        self.client.guilds = [guild]
         self.client.get_guild.return_value = guild
         self.notifier = LiveNotifier(self.client, self.settings, self.store)
         self.stream = LiveStream("video", "Cozy Stream", "https://www.youtube.com/watch?v=video")
@@ -131,7 +134,7 @@ class NotificationTests(unittest.IsolatedAsyncioTestCase):
         client = NotificationBot(self.settings)
         try:
             self.assertEqual(
-                {c.name for c in client.tree.get_commands()}, {"ping", "set-role", "test-live"}
+                {c.name for c in client.tree.get_commands()}, {"ping", "set-role", "set-channel", "test-live"}
             )
             interaction = SimpleNamespace(
                 guild_id=1, channel_id=3, response=AsyncMock(), followup=AsyncMock()
@@ -146,10 +149,10 @@ class NotificationTests(unittest.IsolatedAsyncioTestCase):
             with patch.object(client.notifier, "send_test", new=AsyncMock(return_value=1)) as send:
                 await client.tree.get_command("test-live").callback(interaction)
                 send.assert_awaited_once_with(1)
-            for name in ("set-role", "test-live"):
+            for name in ("ping", "set-role", "set-channel", "test-live"):
                 command = client.tree.get_command(name)
                 self.assertTrue(command.guild_only)
-                self.assertTrue(command.default_permissions.manage_guild)
+                self.assertEqual(command.default_permissions, discord.Permissions(administrator=True))
         finally:
             await client.close()
 

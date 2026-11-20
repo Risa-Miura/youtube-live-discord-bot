@@ -7,9 +7,8 @@ from contextlib import suppress
 
 import aiohttp
 import discord
-from discord import app_commands
 
-from commands import register_commands
+from commands import AdminCommandTree, register_commands
 from config import Settings, load_settings
 from monitors.youtube import YouTubeMonitor
 from notifications import LiveNotifier
@@ -22,7 +21,7 @@ class NotificationBot(discord.Client):
     def __init__(self, settings: Settings):
         super().__init__(intents=discord.Intents.default())
         self.settings = settings
-        self.tree = app_commands.CommandTree(self)
+        self.tree = AdminCommandTree(self)
         self.store = StateStore(settings.data_dir)
         self.notifier = LiveNotifier(self, settings, self.store)
         self.youtube: YouTubeMonitor | None = None

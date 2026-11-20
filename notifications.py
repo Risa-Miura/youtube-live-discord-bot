@@ -29,6 +29,33 @@ def format_live_notification(stream: LiveStream, role_mention: str, twitch_url: 
     )
 
 
+def channel_permission_error(channel: discord.TextChannel, guild: discord.Guild) -> str | None:
+    if channel.guild.id != guild.id:
+        return "Choose a text channel in this server."
+    if guild.me is None:
+        return "I could not verify my channel permissions. Please try again."
+    permissions = channel.permissions_for(guild.me)
+    if not permissions.view_channel or not permissions.send_messages:
+        return "I need View Channel and Send Messages permissions in that channel."
+    return None
+
+
+def notification_channel(guild: discord.Guild, store: StateStore) -> discord.TextChannel | None:
+    """Resolve the shared destination for any notification source, without a fallback."""
+    channel_id = store.notification_channel_id(guild.id)
+    if channel_id is None:
+        logger.warning("No notification channel configured in guild %s; use /set-channel", guild.id)
+        return None
+    channel = guild.get_channel(channel_id)
+    if not isinstance(channel, discord.TextChannel):
+        logger.warning("Notification channel missing in guild %s; use /set-channel", guild.id)
+        return None
+    if channel_permission_error(channel, guild):
+        logger.warning("Notification channel inaccessible in guild %s; check permissions and use /set-channel", guild.id)
+        return None
+    return channel
+
+
 class LiveNotifier:
     def __init__(self, client: discord.Client, settings: Settings, store: StateStore):
         self.client = client
@@ -45,18 +72,20 @@ class LiveNotifier:
             return 0
         sent_count = 0
         async with self._lock:
-            for guild_id, destination in self.store.destinations().items():
+            destinations = self.store.destinations()
+            for guild in self.client.guilds:
+                guild_id = str(guild.id)
                 if guild_ids is not None and guild_id not in guild_ids:
                     continue
                 if remember and self.store.was_announced(guild_id, stream.video_id):
                     continue
-                guild = self.client.get_guild(int(guild_id))
-                if guild is None:
+                channel = notification_channel(guild, self.store)
+                if channel is None:
                     continue
-                role = guild.get_role(destination["role_id"])
-                channel = guild.get_channel_or_thread(destination["channel_id"])
-                if role is None or not isinstance(channel, discord.abc.Messageable):
-                    logger.warning("Saved role or channel unavailable in guild %s", guild_id)
+                role_id = destinations.get(guild_id, {}).get("role_id")
+                role = guild.get_role(role_id) if role_id is not None else None
+                if role is None:
+                    logger.warning("Notification role unavailable in guild %s; use /set-role", guild_id)
                     continue
                 try:
                     await channel.send(
@@ -66,7 +95,7 @@ class LiveNotifier:
                         ),
                     )
                 except discord.HTTPException as error:
-                    logger.warning("Discord alert failed in guild %s (HTTP %s)", guild_id, error.status)
+                    logger.warning("Discord alert failed in guild %s (HTTP %s); check permissions and use /set-channel if needed", guild_id, error.status)
                     continue
                 sent_count += 1
                 if remember:
